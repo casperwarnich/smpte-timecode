@@ -10,10 +10,10 @@
      * @constructor
      * @returns {Timecode} timecode
      */
-    var Timecode = function ( timeCode, frameRate, dropFrame ) {
+    var Timecode = function ( timeCode, frameRate, dropFrame, precedingHourZero) {
 
         // Make this class safe for use without "new"
-        if (!(this instanceof Timecode)) return new Timecode( timeCode, frameRate, dropFrame);
+        if (!(this instanceof Timecode)) return new Timecode( timeCode, frameRate, dropFrame, precedingHourZero);
 
         // Get frame rate
         if (typeof frameRate === 'undefined') this.frameRate = 29.97;
@@ -27,6 +27,10 @@
         if (typeof dropFrame === 'boolean') this.dropFrame = dropFrame;
         else this.dropFrame = (this.frameRate===29.97 || this.frameRate===59.94); // by default, assume DF for 29.97 and 59.94, NDF otherwise
 
+        // Choose if we want to output the preceding zero in the hours below 10.
+        if (typeof precedingHourZero === 'undefined' || precedingHourZero == true) this.precedingHourZero = true;
+        else this.precedingHourZero = false;
+
         // Now either get the frame count, string or datetime        
         if (typeof timeCode === 'number') {
             this.frameCount = Math.round(timeCode);
@@ -34,8 +38,8 @@
         }
         else if (typeof timeCode === 'string') {
             // pick it apart
-            var parts = timeCode.match('^([012]\\d):(\\d\\d):(\\d\\d)(:|;|\\.)(\\d\\d)$');
-            if (!parts) throw new Error("Timecode string expected as HH:MM:SS:FF or HH:MM:SS;FF");
+            var parts = timeCode.match('^([0-23]|[01]\\d):(\\d\\d):(\\d\\d)(:|;|\\.)(\\d\\d)$');
+            if (!parts) throw new Error("Timecode string expected as HH:MM:SS:FF, H:MM:SS:FF, HH:MM:SS;FF or H:MM:SS;FF");
             this.hours = parseInt(parts[1]);
             this.minutes = parseInt(parts[2]);
             this.seconds = parseInt(parts[3]);
@@ -53,7 +57,7 @@
             this.frameCount = Math.round(((timeCode-midnight + (midnight_tz - timecode_tz))*this.frameRate)/1000);
             this._frameCountToTimeCode();
         }
-        else if (typeof timeCode === 'object' && typeof (timeCode.hours) != 'undefined') {
+        else if (typeof timeCode === 'object' && timeCode.hours >= 0) {
             this.hours = timeCode.hours;
             this.minutes = timeCode.minutes;
             this.seconds = timeCode.seconds;
@@ -145,7 +149,7 @@
             else throw new Error('Unsupported string format');
         };
         return "".concat(
-            this.hours<10 ? '0' : '',
+            this.hours<10 && this.precedingHourZero==true ? '0' : '',
             this.hours.toString(),
             ':',
             this.minutes<10 ? '0' : '',
